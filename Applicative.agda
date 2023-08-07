@@ -1,13 +1,14 @@
 module Applicative where
 
 open import Level using (Level; suc; _⊔_)
-open import Functor using (IsFunctor)
 open import Function.Base using (id)
 open import Effect.Applicative using (RawApplicative)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_)
+open Eq using (_≡_; cong; sym)
+open Eq.≡-Reasoning using (begin_; step-≡; _∎)
+open import Function.Base using (id; _∘_)
 
-open import Functor using (Functor)
+open import Functor using (FunctorLaws; Functor)
 
 private
   variable
@@ -18,41 +19,57 @@ record ApplicativeLaws
   (pure : ∀ {A} → A → F A)
   (_<*>_ : ∀ {A B} → F (A → B) → F A → F B) : Set (suc ℓ ⊔ ℓ′) where
   field
-    identity : ∀ {A} {x : F A} →
+    identity :
+      ∀ {A} {x : F A} →
       --------------------
       pure id <*> x ≡ x
-    homomorphism : ∀ {A B} {f : A → B} {x} →
+    homomorphism :
+      ∀ {A B} {f : A → B} {x} →
       --------------------
       pure f <*> pure x ≡ pure (f x)
-    interchange : ∀ {A B} {u : F (A → B)} {y} →
+    interchange :
+      ∀ {A B} {u : F (A → B)} {y} →
       --------------------
       u <*> pure y ≡ pure (λ f → f y) <*> u
-    composition : ∀ {A B C} {u : F (B → C)} {v : F (A → B)} {w : F A} →
+    composition :
+      ∀ {A B C} {u : F (B → C)} {v : F (A → B)} {w : F A} →
       --------------------
       ((pure (λ f g x → f (g x)) <*> u) <*> v) <*> w ≡ u <*> (v <*> w)
 
-record IsApplicative
-  (F : Set ℓ → Set ℓ′)
-  (_<$>_ : ∀ {A B} → (A → B) → F A → F B)
-  (pure : ∀ {A} → A → F A)
-  (_<*>_ : ∀ {A B} → F (A → B) → F A → F B) : Set (suc ℓ ⊔ ℓ′) where
-  field
-    isFunctor : IsFunctor F _<$>_
-    applicativeLaws : ApplicativeLaws F pure _<*>_
+  functor : Functor F
+  functor = record { _<$>_ = _<$>_ ; functorLaws = functorLaws } where
+    _<$>_ : ∀ {A B} → (A → B) → F A → F B
+    f <$> x = pure f <*> x
 
-  open IsFunctor isFunctor public
-  open ApplicativeLaws applicativeLaws public
+    functorLaws : FunctorLaws F _<$>_
+    functorLaws = record { identity = identity′ ; composition = composition′ } where
+      identity′ :  ∀ {A} {x : F A} →
+        (id <$> x) ≡ x
+      identity′ = identity
+
+      composition′ : ∀ {A B C} {f : B → C} {g : A → B} {x : F A} →
+        ((f ∘ g) <$> x) ≡ (f <$> (g <$> x))
+      composition′ {f = f} {g = g} {x = x} =
+        begin
+          pure (f ∘ g) <*> x
+        ≡⟨ cong (λ z → z <*> x) (sym homomorphism) ⟩
+          ((pure (λ g x → f (g x))) <*> pure g) <*> x
+        ≡⟨ cong (λ z → (z <*> pure g) <*> x) (sym homomorphism) ⟩
+          ((pure (λ f g x → f (g x)) <*> pure f) <*> pure g) <*> x
+        ≡⟨ composition ⟩
+          pure f <*> (pure g <*> x)
+        ∎
 
 record Applicative (F : Set ℓ → Set ℓ′) : Set (suc ℓ ⊔ ℓ′) where
+  infixl 4 _<*>_
   field
-    rawApplicative : RawApplicative F
-    isApplicative : IsApplicative F
-      (RawApplicative._<$>_ rawApplicative)
-      (RawApplicative.pure rawApplicative)
-      (RawApplicative._<*>_ rawApplicative)
+    functor : Functor F
+    pure : ∀ {A} → A → F A
+    _<*>_ : ∀ {A B} → F (A → B) → F A → F B
+    applicativeLaws : ApplicativeLaws F pure _<*>_
 
-  open RawApplicative rawApplicative public
-  open IsApplicative isApplicative public
+  rawApplicative : RawApplicative F
+  rawApplicative = record { rawFunctor = (Functor.rawFunctor functor) ; pure = pure ; _<*>_ = _<*>_ }
 
-  functor : Functor F
-  functor = record { rawFunctor = rawFunctor ; isFunctor = isFunctor }
+  open Functor.Functor functor public
+  open ApplicativeLaws applicativeLaws public hiding (functor)

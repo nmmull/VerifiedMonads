@@ -7,8 +7,8 @@ open Eq.≡-Reasoning using (begin_; step-≡; _∎)
 open import Effect.Monad using (RawMonad)
 open import Function.Base using (id; _∘_)
 
-open import Functor using (Functor; IsFunctor)
-open import Applicative using (Applicative; IsApplicative)
+open import Functor using (Functor; FunctorLaws)
+open import Applicative using (Applicative; ApplicativeLaws)
 
 postulate
   extentionality : ∀ {i j} {A : Set i} {B : Set j} {f g : A → B} →
@@ -36,53 +36,37 @@ record MonadLaws
       --------------------
       (m >>= g) >>= h ≡ m >>= (λ x → (g x) >>= h)
 
-  infixl 4 _<$>′_
-  _<$>′_ : ∀ {A B} → (A → B) → F A → F B
-  f <$>′ x = x >>= (pure ∘ f)
+  functor : Functor F
+  functor = record { _<$>_ = _<$>_ ; functorLaws = functorLaws } where
+    _<$>_ : ∀ {A B} → (A → B) → F A → F B
+    f <$> x = x >>= (pure ∘ f)
 
-  isFunctor′ : IsFunctor F _<$>′_
-  isFunctor′ = record { identity = identity ; composition = composition } where
-    identity :  ∀ {A} {x : F A} →
-      (id <$>′ x) ≡ x
-    identity = identityʳ
-    composition : ∀ {A B C} {f : B → C} {g : A → B} {x : F A} →
-      ((f ∘ g) <$>′ x) ≡ (f <$>′ (g <$>′ x))
-    composition {f = f} {g = g} {x = x} =
-      begin
-        x  >>= (pure ∘ f ∘ g)
-      ≡⟨ cong (λ f → x >>= f) (extentionality refl) ⟩
-        x >>= (λ y → pure (g y) >>= (pure ∘ f))
-      ≡⟨ sym associativity ⟩
-        (x >>= (pure ∘ g)) >>= (pure ∘ f)
-      ∎
+    functorLaws : FunctorLaws F _<$>_
+    functorLaws = record { identity = identity ; composition = composition } where
+      identity :  ∀ {A} {x : F A} →
+        (id <$> x) ≡ x
+      identity = identityʳ
 
-  functor′ : Functor F
-  functor′ = record { rawFunctor = record { _<$>_ = _<$>′_ } ; isFunctor = isFunctor′ }
-
-record IsMonad
-  (F : Set ℓ → Set ℓ′)
-  (map : ∀ {A B} → (A → B) → F A → F B)
-  (pure : ∀ {A} → A → F A)
-  (app : ∀ {A B} → F (A → B) → F A → F B)
-  (bind : ∀ {A B} → F A → (A → F B) → F B) : Set (suc ℓ ⊔ ℓ′) where
-  field
-    isApplicative : IsApplicative F map pure app
-    monadLaws : MonadLaws F pure bind
-
-  open IsApplicative isApplicative public
-  open MonadLaws monadLaws public
+      composition : ∀ {A B C} {f : B → C} {g : A → B} {x : F A} →
+        ((f ∘ g) <$> x) ≡ (f <$> (g <$> x))
+      composition {f = f} {g = g} {x = x} =
+        begin
+          x  >>= (pure ∘ f ∘ g)
+        ≡⟨ cong (λ f → x >>= f) (extentionality refl) ⟩
+          x >>= (λ y → pure (g y) >>= (pure ∘ f))
+        ≡⟨ sym associativity ⟩
+          (x >>= (pure ∘ g)) >>= (pure ∘ f)
+        ∎
 
 record Monad (F : Set ℓ → Set ℓ′) : Set (suc ℓ ⊔ ℓ′) where
+  infixl 1 _>>=_
   field
-    rawMonad : RawMonad F
-    isMonad : IsMonad F
-      (RawMonad._<$>_ rawMonad)
-      (RawMonad.pure  rawMonad)
-      (RawMonad._<*>_ rawMonad)
-      (RawMonad._>>=_ rawMonad)
+    applicative : Applicative F
+    _>>=_ : ∀ {A B} → F A → (A → F B) → F B
+    monadLaws : MonadLaws F (Applicative.pure applicative) _>>=_
 
-  open RawMonad rawMonad public
-  open IsMonad isMonad public
+  rawMonad : RawMonad F
+  rawMonad = record { rawApplicative = Applicative.rawApplicative applicative ; _>>=_ = _>>=_ }
 
-  applicative : Applicative F
-  applicative = record { rawApplicative = rawApplicative ; isApplicative = isApplicative }
+  open Applicative.Applicative applicative public
+  open MonadLaws public hiding (functor)

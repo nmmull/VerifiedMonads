@@ -10,7 +10,7 @@ private
   variable
     ℓ ℓ′ : Level
 
-record IsFunctor
+record FunctorLaws
   (F : Set ℓ → Set ℓ′)
   (_<$>_ : ∀ {A B} → (A → B) → F A → F B) : Set (suc ℓ ⊔ ℓ′) where
   field
@@ -24,9 +24,12 @@ record IsFunctor
       (f ∘ g) <$> x ≡ f <$> (g <$> x)
 
 record Functor (F : Set ℓ → Set ℓ′) : Set (suc ℓ ⊔ ℓ′) where
+  infixl 4 _<$>_
   field
-    rawFunctor : RawFunctor F
-    isFunctor : IsFunctor F (RawFunctor._<$>_ rawFunctor)
+    _<$>_ : ∀ {A B} → (A → B) → F A → F B
+    functorLaws : FunctorLaws F _<$>_
 
-  open RawFunctor rawFunctor public
-  open IsFunctor isFunctor public
+  rawFunctor : RawFunctor F
+  rawFunctor = record { _<$>_ = _<$>_ }
+
+  open FunctorLaws functorLaws public
