@@ -11,7 +11,7 @@ open import Functor using (Functor; FunctorLaws)
 open import Applicative using (Applicative; ApplicativeLaws)
 
 postulate
-  extentionality : ∀ {i j} {A : Set i} {B : Set j} {f g : A → B} →
+  extensionality : ∀ {i j} {A : Set i} {B : Set j} {f g : A → B} →
     (∀ {x} → f x ≡ f x) → f ≡ g
 
 private
@@ -52,7 +52,7 @@ record MonadLaws
       composition {f = f} {g = g} {x = x} =
         begin
           x  >>= (pure ∘ f ∘ g)
-        ≡⟨ cong (λ f → x >>= f) (extentionality refl) ⟩
+        ≡⟨ cong (λ f → x >>= f) (extensionality refl) ⟩
           x >>= (λ y → pure (g y) >>= (pure ∘ f))
         ≡⟨ sym associativity ⟩
           (x >>= (pure ∘ g)) >>= (pure ∘ f)
