@@ -1,12 +1,10 @@
 module Applicative where
 
 open import Level using (Level; suc; _⊔_)
-open import Function.Base using (id)
-open import Effect.Applicative using (RawApplicative)
-import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; cong; sym)
-open Eq.≡-Reasoning using (begin_; step-≡; _∎)
 open import Function.Base using (id; _∘_)
+open import Effect.Applicative using (RawApplicative)
+open import Relation.Binary.PropositionalEquality
+open Relation.Binary.PropositionalEquality.≡-Reasoning
 
 open import Functor using (FunctorLaws; Functor)
 
@@ -19,21 +17,13 @@ record ApplicativeLaws
   (pure : ∀ {A} → A → F A)
   (_<*>_ : ∀ {A B} → F (A → B) → F A → F B) : Set (suc ℓ ⊔ ℓ′) where
   field
-    identity :
-      ∀ {A} {x : F A} →
-      --------------------
+    identity : ∀ {A} {x : F A} →
       pure id <*> x ≡ x
-    homomorphism :
-      ∀ {A B} {f : A → B} {x} →
-      --------------------
+    homomorphism : ∀ {A B} {f : A → B} {x} →
       pure f <*> pure x ≡ pure (f x)
-    interchange :
-      ∀ {A B} {u : F (A → B)} {y} →
-      --------------------
+    interchange : ∀ {A B} {u : F (A → B)} {y} →
       u <*> pure y ≡ pure (λ f → f y) <*> u
-    composition :
-      ∀ {A B C} {u : F (B → C)} {v : F (A → B)} {w : F A} →
-      --------------------
+    composition : ∀ {A B C} {u : F (B → C)} {v : F (A → B)} {w : F A} →
       ((pure (λ f g x → f (g x)) <*> u) <*> v) <*> w ≡ u <*> (v <*> w)
 
   functor : Functor F
